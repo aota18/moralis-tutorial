@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+    <script src="https://unpkg.com/moralis/dist/moralis.js"></script>
+    <title>Moralis</title>
+  </head>
+  <body>
+    <h1>Gas Stats with Moralis</h1>
+
+    <button id="btn-login">Moralis Login</button>
+    <button id="btn-logout">Logout</button>
+    <button id="btn-get-stats">Refresh Stats</button>
+
+    <span id="user-info"> </span>
+
+    <script>
+      // connect to Moralis Server
+      const serverUrl = "https://iorlwrrg41kr.usemoralis.com:2053/server";
+      const appId = "JwwfcOmnsit1U1EoQvmWvS92KSnnDPBy1XM8XQ2U";
+      Moralis.start({ serverUrl, appId });
+      let user;
+
+      // add from here down
+      async function login() {
+        user = Moralis.User.current();
+        if (!user) {
+          user = await Moralis.authenticate();
+        }
+        document.getElementById("user-info").innerHTML = JSON.stringify(user);
+        console.log("logged in user:", user, typeof user);
+
+        getStats();
+        getAverageGasPrices();
+      }
+
+      async function logOut() {
+        await Moralis.User.logOut();
+        console.log("logged out");
+      }
+
+      async function getStats() {
+        const user = await Moralis.User.current();
+
+        if (user) {
+          getUserTransactions(user);
+        }
+      }
+
+      async function getUserTransactions(user) {
+        // Create query
+        const query = new Moralis.Query("EthTransactions");
+        query.equalTo("from_address", user.get("ethAddress"));
+
+        // subscribe to query updates
+        const subscription = await query.subscribe();
+        handleNewTransaction(subscription);
+
+        // Run query
+        const results = await query.find();
+        console.log("user transactions:", results);
+      }
+
+      async function handleNewTransaction(subscription) {
+        // log each new transaction
+        subscription.on("create", function (data) {
+          console.log("new transaction", data);
+        });
+      }
+
+      async function getAverageGasPrices() {
+        const results = await Moralis.Cloud.run("getAvgGas");
+        if (results) {
+          console.log("average user gas prices: ", results);
+        }
+      }
+
+      document.getElementById("btn-login").onclick = login;
+      document.getElementById("btn-logout").onclick = logOut;
+      document.getElementById("btn-get-stats").onclick = getStats;
+    </script>
+  </body>
+</html>
